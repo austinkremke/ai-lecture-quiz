@@ -1,5 +1,11 @@
-generator client { provider = "prisma-client-js" }
-datasource db { provider = "postgresql"; url = env("DATABASE_URL") }
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
 
 model Lecture {
   id             String   @id @default(uuid())
@@ -12,13 +18,13 @@ model Lecture {
 }
 
 model Quiz {
-  id            String      @id @default(uuid())
-  lectureId     String      @unique
-  lecture       Lecture     @relation(fields: [lectureId], references: [id])
+  id            String       @id @default(uuid())
+  lectureId     String       @unique
+  lecture       Lecture      @relation(fields: [lectureId], references: [id])
   difficulty    String
   numQuestions  Int
-  isPublished   Boolean     @default(false)
-  publicSlug    String?     @unique
+  isPublished   Boolean      @default(false)
+  publicSlug    String?      @unique
   title         String?
 
   questions     Question[]
@@ -26,14 +32,15 @@ model Quiz {
 }
 
 model Question {
-  id            String  @id @default(uuid())
+  id            String   @id @default(uuid())
   quizId        String
-  quiz          Quiz    @relation(fields: [quizId], references: [id])
+  quiz          Quiz     @relation(fields: [quizId], references: [id])
   prompt        String
   options       Json
   correctIndex  Int
   rationale     String?
   sources       Json?
+  answers       Answer[]
 }
 
 model Submission {
