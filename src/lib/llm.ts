@@ -1,9 +1,16 @@
 import OpenAI from "openai";
 import { z } from "zod";
 
-const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+function getOpenAIClient() {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    throw new Error("OPENAI_API_KEY environment variable is required");
+  }
+  return new OpenAI({ apiKey });
+}
 
 export async function summarizeTranscript(segments: any[]): Promise<string> {
+  const client = getOpenAIClient();
   const res = await client.chat.completions.create({
     model: "gpt-4o",
     messages: [
@@ -28,6 +35,8 @@ const QuizSchema = z.object({
 export type QuizJSON = z.infer<typeof QuizSchema>;
 
 export async function generateQuiz(segments: any[], difficulty: "easy"|"medium"|"hard", n: number): Promise<QuizJSON> {
+  const client = getOpenAIClient();
+  
   const DIFF2BLOOM: Record<string,string[]> = {
     easy: ["Remember","Understand"],
     medium: ["Apply","Analyze"],
