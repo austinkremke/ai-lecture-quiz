@@ -4,14 +4,14 @@ import { z } from "zod";
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function summarizeTranscript(segments: any[]): Promise<string> {
-  const res = await client.responses.create({
+  const res = await client.chat.completions.create({
     model: "gpt-4o",
-    input: [
+    messages: [
       { role: "system", content: "You are a concise academic summarizer." },
       { role: "user", content: "Summarize this lecture into Markdown with headings: Topics, Key Takeaways, Key Terms.\n\n" + JSON.stringify({ segments }) }
     ]
   });
-  return res.output_text ?? "";
+  return res.choices[0]?.message?.content ?? "";
 }
 
 const QuizSchema = z.object({
@@ -69,15 +69,15 @@ export async function generateQuiz(segments: any[], difficulty: "easy"|"medium"|
     strict: true
   };
 
-  const res = await client.responses.create({
+  const res = await client.chat.completions.create({
     model: "gpt-4o",
-    input: [
+    messages: [
       { role: "system", content: `Generate ${n} MCQs from the transcript. Target Bloom levels: ${DIFF2BLOOM[difficulty].join(", ")}. Only use lecture content. Output JSON only.` },
       { role: "user", content: JSON.stringify({ segments }) }
     ],
     response_format: { type: "json_schema", json_schema: jsonSchema as any }
   });
 
-  const json = JSON.parse(res.output_text ?? "{}");
+  const json = JSON.parse(res.choices[0]?.message?.content ?? "{}");
   return QuizSchema.parse(json);
 }
