@@ -1,0 +1,60 @@
+generator client { provider = "prisma-client-js" }
+datasource db { provider = "postgresql"; url = env("DATABASE_URL") }
+
+model Lecture {
+  id             String   @id @default(uuid())
+  title          String?
+  transcriptJson Json?
+  summaryMd      String?
+  status         String   @default("uploaded")
+  createdAt      DateTime @default(now())
+  quiz           Quiz?
+}
+
+model Quiz {
+  id            String      @id @default(uuid())
+  lectureId     String      @unique
+  lecture       Lecture     @relation(fields: [lectureId], references: [id])
+  difficulty    String
+  numQuestions  Int
+  isPublished   Boolean     @default(false)
+  publicSlug    String?     @unique
+  title         String?
+
+  questions     Question[]
+  submissions   Submission[]
+}
+
+model Question {
+  id            String  @id @default(uuid())
+  quizId        String
+  quiz          Quiz    @relation(fields: [quizId], references: [id])
+  prompt        String
+  options       Json
+  correctIndex  Int
+  rationale     String?
+  sources       Json?
+}
+
+model Submission {
+  id            String     @id @default(uuid())
+  quizId        String
+  quiz          Quiz       @relation(fields: [quizId], references: [id])
+  studentLabel  String?
+  startedAt     DateTime   @default(now())
+  submittedAt   DateTime?
+  answers       Answer[]
+}
+
+model Answer {
+  submissionId  String
+  questionId    String
+
+  submission    Submission @relation(fields: [submissionId], references: [id])
+  question      Question   @relation(fields: [questionId], references: [id])
+
+  chosenIndex   Int?
+  isCorrect     Boolean
+
+  @@id([submissionId, questionId])
+}
