@@ -38,7 +38,7 @@ export default function Home() {
         </div>
       </form>
       {status && <p className="mt-4">{status}</p>}
-      {quizUrl && <p className="mt-2">Student link: <a className="text-blue-600 underline" href={quizUrl}>{quizUrl}</a></p>}
+      {quizUrl && <p className="mt-2">Student link: <a className="text-blue-600 underline" href={quizUrl} target="_blank" rel="noopener noreferrer">{quizUrl}</a></p>}
       <p className="mt-8 text-sm text-gray-600">
         Tip: use a short audio clip while testing. For longer files, consider background jobs.
       </p>
