@@ -10,8 +10,9 @@ const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
  * We request `verbose_json` so we can map segment timestamps.
  */
 export async function transcribeBuffer(buf: Buffer, mime: string = "audio/webm"): Promise<Transcript> {
-  // Node 18+ has global File/Blob
-  const file = new File([buf], `audio.${mime.includes("wav") ? "wav" : "webm"}`, { type: mime });
+  // Convert Buffer to Uint8Array for File constructor compatibility
+  const uint8Array = new Uint8Array(buf);
+  const file = new File([uint8Array], `audio.${mime.includes("wav") ? "wav" : "webm"}`, { type: mime });
 
   const tr = await client.audio.transcriptions.create({
     file,
