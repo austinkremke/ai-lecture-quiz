@@ -6,7 +6,10 @@ export const dynamic = "force-dynamic";
 export default async function Page({ params }: { params: { slug: string } }) {
   const quiz = await prisma.quiz.findFirst({ where: { publicSlug: params.slug, isPublished: true } });
   if (!quiz) return <div className="p-6">Quiz not found.</div>;
-  const questions = await prisma.question.findMany({ where: { quizId: quiz.id } });
+  const questions = await prisma.question.findMany({ 
+    where: { quizId: quiz.id },
+    orderBy: { id: "asc" }
+  });
   
   // Transform the data to match QuizClient expectations
   const quizWithQuestions = {

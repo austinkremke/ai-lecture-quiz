@@ -49,25 +49,30 @@ export async function generateQuiz(segments: any[], difficulty: "easy"|"medium"|
       type: "object",
       properties: {
         questions: {
-          type: "array", minItems: n, maxItems: n,
+          type: "array", 
+          minItems: n, 
+          maxItems: n,
           items: {
             type: "object",
             properties: {
-              type: { const: "mcq" },
+              type: { 
+                type: "string",
+                const: "mcq" 
+              },
               prompt: { type: "string" },
-              options: { type: "array", items: { type: "string" }, minItems: 4, maxItems: 4 },
-              correct_index: { type: "integer", minimum: 0, maximum: 3 },
-              rationale: { type: "string" },
-              sources: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: { t0: { type: "number" }, t1: { type: "number" }, quote: { type: "string", maxLength: 180 } },
-                  required: ["t0","t1","quote"]
-                }
+              options: { 
+                type: "array", 
+                items: { type: "string" }, 
+                minItems: 4, 
+                maxItems: 4 
+              },
+              correct_index: { 
+                type: "integer", 
+                minimum: 0, 
+                maximum: 3 
               }
             },
-            required: ["prompt","options","correct_index"],
+            required: ["type", "prompt", "options", "correct_index"],
             additionalProperties: false
           }
         }
