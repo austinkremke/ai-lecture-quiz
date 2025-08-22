@@ -28,8 +28,15 @@ export async function POST(req: NextRequest) {
 
     const quizJson = await generateQuiz(transcript.segments, difficulty, numQuestions);
     const quiz = await prisma.quiz.create({ data: { lectureId: lecture.id, difficulty, numQuestions, title } });
-    await prisma.$transaction(quizJson.questions.map(q => prisma.question.create({
-      data: { quizId: quiz.id, prompt: q.prompt, options: q.options, correctIndex: q.correct_index, rationale: q.rationale ?? null, sources: q.sources ?? null }
+    await prisma.$transaction(quizJson.questions.map((q: any) => prisma.question.create({
+      data: { 
+        quizId: quiz.id, 
+        prompt: q.prompt, 
+        options: q.options, 
+        correctIndex: q.correct_index, 
+        rationale: q.rationale || null, 
+        sources: q.sources || null 
+      }
     })));
 
     await prisma.lecture.update({ where: { id: lecture.id }, data: { status: "ready" } });

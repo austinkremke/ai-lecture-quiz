@@ -1,17 +1,36 @@
 "use client";
 import { useState } from "react";
 
-export default function QuizClient({ slug, questions }: { slug: string; questions: any[] }) {
-  const [choices, setChoices] = useState<number[]>(Array(questions.length).fill(-1));
+interface Question {
+  id: string;
+  prompt: string;
+  options: string[];
+  correctIndex: number;
+  rationale?: string;
+}
+
+interface Quiz {
+  id: string;
+  title?: string;
+  questions: Question[];
+}
+
+interface QuizClientProps {
+  quiz: Quiz;
+  slug: string;
+}
+
+export default function QuizClient({ quiz, slug }: QuizClientProps) {
+  const [choices, setChoices] = useState<number[]>(Array(quiz.questions.length).fill(-1));
   const [submitting, setSubmitting] = useState(false);
-  const [result, setResult] = useState<{score:number;total:number}|null>(null);
+  const [result, setResult] = useState<{score: number, total: number} | null>(null);
 
   async function submit() {
     setSubmitting(true);
     const res = await fetch(`/api/submissions/${slug}/submit`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ choices })
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ answers: choices })
     });
     const data = await res.json();
     setResult(data);
@@ -29,15 +48,15 @@ export default function QuizClient({ slug, questions }: { slug: string; question
 
   return (
     <div>
-      {questions.map((q, i) => (
+      {quiz.questions.map((q, i) => (
         <div key={q.id} className="mb-6">
           <p className="font-medium">{i+1}. {q.prompt}</p>
           <ul className="mt-2 space-y-2">
-            {q.options.map((opt: string, j: number) => (
+            {q.options.map((opt, j) => (
               <li key={j}>
                 <label className="flex items-center gap-2">
                   <input type="radio" name={`q${i}`} checked={choices[i]===j}
-                    onChange={()=>setChoices(prev=>{const c=[...prev]; c[i]=j; return c;})}/>
+                    onChange={()=>setChoices((prev: number[])=>{const c=[...prev]; c[i]=j; return c;})}/>
                   <span>{opt}</span>
                 </label>
               </li>
@@ -47,8 +66,8 @@ export default function QuizClient({ slug, questions }: { slug: string; question
       ))}
       <button className="rounded bg-black text-white px-4 py-2 disabled:opacity-60"
         onClick={submit}
-        disabled={submitting || choices.some(c=>c===-1)}>
-        {submitting ? "Submitting..." : "Submit"}
+        disabled={submitting || choices.some((c: number)=>c===-1)}>
+        {submitting ? "Submitting..." : "Submit Quiz"}
       </button>
     </div>
   );
