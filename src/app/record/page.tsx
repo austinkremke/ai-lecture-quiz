@@ -1,7 +1,18 @@
 "use client";
 import { useState, useRef } from "react";
 import Link from "next/link";
-import { Mic, Square, Upload, ArrowLeft, Loader2, FileAudio } from "lucide-react";
+import Image from "next/image";
+import { 
+  Mic, 
+  Square, 
+  Upload, 
+  ArrowLeft, 
+  Loader2, 
+  FileAudio, 
+  Settings,
+  CheckCircle2,
+  ExternalLink
+} from "lucide-react";
 
 export default function RecordPage() {
   const [isRecording, setIsRecording] = useState(false);
@@ -10,11 +21,16 @@ export default function RecordPage() {
   const [duration, setDuration] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [activeTab, setActiveTab] = useState<'record' | 'upload'>('record');
+  const [title, setTitle] = useState("");
+  const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">("medium");
+  const [numQuestions, setNumQuestions] = useState(8);
+  const [result, setResult] = useState<{ quizId: string; url?: string } | null>(null);
+  
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const startRecording = async () => {
+  async function startRecording() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
@@ -55,9 +71,9 @@ export default function RecordPage() {
       console.error('Error accessing microphone:', error);
       alert('Could not access microphone. Please check permissions.');
     }
-  };
+  }
 
-  const stopRecording = () => {
+  function stopRecording() {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
@@ -66,22 +82,22 @@ export default function RecordPage() {
         clearInterval(intervalRef.current);
       }
     }
-  };
+  }
 
-  const formatTime = (seconds: number) => {
+  function formatTime(seconds: number) {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
+  }
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  function handleFileUpload(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (file) {
       setUploadedFile(file);
       setAudioBlob(null); // Clear any existing recording
       setDuration(0);
     }
-  };
+  }
 
   const handleUpload = async () => {
     const fileToUpload = audioBlob || uploadedFile;
@@ -92,14 +108,14 @@ export default function RecordPage() {
     
     if (audioBlob) {
       formData.append('file', audioBlob, 'recording.webm');
-      formData.append('title', `Recorded Lecture - ${new Date().toLocaleDateString()}`);
+      formData.append('title', title || `Recorded Lecture - ${new Date().toLocaleDateString()}`);
     } else if (uploadedFile) {
       formData.append('file', uploadedFile);
-      formData.append('title', uploadedFile.name.replace(/\.[^/.]+$/, ""));
+      formData.append('title', title || uploadedFile.name.replace(/\.[^/.]+$/, ""));
     }
     
-    formData.append('difficulty', 'medium');
-    formData.append('numQuestions', '8');
+    formData.append('difficulty', difficulty);
+    formData.append('numQuestions', numQuestions.toString());
 
     try {
       const response = await fetch('/api/lectures', {
@@ -107,30 +123,185 @@ export default function RecordPage() {
         body: formData,
       });
 
+      const data = await response.json();
+      
       if (response.ok) {
-        const data = await response.json();
-        window.location.href = `/upload?success=true&quizId=${data.quizId}`;
+        // Publish the quiz
+        const publishRes = await fetch(`/api/quizzes/${data.quizId}/publish`, {
+          method: "POST",
+        });
+        
+        if (publishRes.ok) {
+          const publishData = await publishRes.json();
+          setResult({ quizId: data.quizId, url: publishData.url });
+        } else {
+          setResult({ quizId: data.quizId });
+        }
       } else {
-        throw new Error('Upload failed');
+        throw new Error(data.error || 'Upload failed');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Upload error:', error);
-      alert('Upload failed. Please try again.');
+      alert(`Upload failed: ${error.message}`);
     } finally {
       setUploading(false);
     }
   };
 
+  // Success page
+  if (result) {
+    return (
+      <div className="min-h-screen bg-neutral-50">
+        {/* Header */}
+        <header className="bg-white border-b border-neutral-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between h-16">
+              <div className="flex items-center gap-2">
+                <Image
+                  src="/images/lecture-logo.png"
+                  alt="Resona Logo"
+                  width={32}
+                  height={32}
+                  className="rounded-lg"
+                />
+                <span className="font-semibold tracking-tight text-lg">Resona</span>
+              </div>
+
+              <nav className="hidden md:flex items-center gap-6">
+                <Link href="/dashboard" className="text-neutral-600 hover:text-[#28929f] transition-colors">Dashboard</Link>
+                <Link href="/record" className="text-neutral-600 hover:text-[#28929f] transition-colors">Record</Link>
+                <Link href="/upload" className="text-neutral-600 hover:text-[#28929f] transition-colors">Upload</Link>
+              </nav>
+
+              <div className="flex items-center gap-3">
+                <button className="p-2 rounded-lg hover:bg-neutral-100">
+                  <Settings className="w-5 h-5 text-neutral-600" />
+                </button>
+                <div className="w-8 h-8 rounded-full bg-[#28929f] flex items-center justify-center text-white text-sm font-medium">
+                  JD
+                </div>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* Success Content */}
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-green-100 flex items-center justify-center">
+              <CheckCircle2 className="w-8 h-8 text-green-600" />
+            </div>
+            <h1 className="text-2xl md:text-3xl font-bold text-neutral-900 mb-2">
+              Quiz Generated Successfully!
+            </h1>
+            <p className="text-neutral-600">
+              Your lecture has been processed and your quiz is ready to share.
+            </p>
+          </div>
+
+          <div className="max-w-2xl mx-auto">
+            <div className="bg-white rounded-xl border border-neutral-200 p-6 mb-6">
+              {result.url ? (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 text-green-600 mb-4">
+                    <CheckCircle2 className="w-5 h-5" />
+                    <span className="font-medium">Your quiz has been published and is ready to share</span>
+                  </div>
+                  
+                  <div className="p-4 bg-neutral-50 rounded-lg">
+                    <p className="font-medium text-neutral-900 mb-2">Quiz URL:</p>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={result.url}
+                        readOnly
+                        className="flex-1 px-3 py-2 bg-white border border-neutral-300 rounded-lg text-sm"
+                      />
+                      <button
+                        onClick={() => navigator.clipboard.writeText(result.url!)}
+                        className="px-3 py-2 bg-[#28929f] hover:bg-[#237a85] text-white rounded-lg text-sm transition-colors"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center">
+                  <p className="text-orange-600 mb-4">Quiz created but not yet published</p>
+                  <p className="text-sm text-neutral-600">Quiz ID: {result.quizId}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              {result.url && (
+                <a
+                  href={result.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 px-6 py-3 bg-[#28929f] hover:bg-[#237a85] text-white rounded-lg font-medium transition-colors"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  Take Quiz
+                </a>
+              )}
+              <button
+                onClick={() => {
+                  setResult(null);
+                  setAudioBlob(null);
+                  setUploadedFile(null);
+                  setTitle("");
+                  setDuration(0);
+                }}
+                className="px-6 py-3 border border-neutral-300 bg-white hover:bg-neutral-50 text-neutral-700 rounded-lg font-medium transition-colors"
+              >
+                Create Another Quiz
+              </button>
+              <Link
+                href="/dashboard"
+                className="px-6 py-3 border border-neutral-300 bg-white hover:bg-neutral-50 text-neutral-700 rounded-lg font-medium transition-colors text-center"
+              >
+                Back to Dashboard
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-neutral-50">
       {/* Header */}
       <header className="bg-white border-b border-neutral-200">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center gap-4">
-            <Link href="/" className="flex items-center gap-2 text-neutral-600 hover:text-[#28929f] transition-colors">
-              <ArrowLeft className="w-5 h-5" />
-              Back to Home
-            </Link>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center gap-2">
+              <Image
+                src="/images/lecture-logo.png"
+                alt="Resona Logo"
+                width={32}
+                height={32}
+                className="rounded-lg"
+              />
+              <span className="font-semibold tracking-tight text-lg">Resona</span>
+            </div>
+
+            <nav className="hidden md:flex items-center gap-6">
+              <Link href="/dashboard" className="text-neutral-600 hover:text-[#28929f] transition-colors">Dashboard</Link>
+              <Link href="/record" className="text-[#28929f] font-medium">Record</Link>
+              <Link href="/upload" className="text-neutral-600 hover:text-[#28929f] transition-colors">Upload</Link>
+            </nav>
+
+            <div className="flex items-center gap-3">
+              <button className="p-2 rounded-lg hover:bg-neutral-100">
+                <Settings className="w-5 h-5 text-neutral-600" />
+              </button>
+              <div className="w-8 h-8 rounded-full bg-[#28929f] flex items-center justify-center text-white text-sm font-medium">
+                JD
+              </div>
+            </div>
           </div>
         </div>
       </header>
@@ -178,6 +349,54 @@ export default function RecordPage() {
         <div className="max-w-2xl mx-auto">
           <div className="bg-white rounded-2xl shadow-lg border border-neutral-200 p-8">
             
+            {/* Quiz Settings */}
+            <div className="mb-8 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-2">
+                  Lecture Title
+                </label>
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder={activeTab === 'record' ? "Enter lecture title (optional)" : "Enter lecture title"}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#28929f] focus:border-[#28929f]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">
+                    Difficulty
+                  </label>
+                  <select
+                    value={difficulty}
+                    onChange={(e) => setDifficulty(e.target.value as "easy" | "medium" | "hard")}
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#28929f] focus:border-[#28929f]"
+                  >
+                    <option value="easy">Easy</option>
+                    <option value="medium">Medium</option>
+                    <option value="hard">Hard</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">
+                    Number of Questions
+                  </label>
+                  <input
+                    type="number"
+                    min="3"
+                    max="20"
+                    value={numQuestions}
+                    onChange={(e) => setNumQuestions(parseInt(e.target.value) || 8)}
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#28929f] focus:border-[#28929f]"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Content for Record Tab */}
             {activeTab === 'record' && (
               <>
                 {/* Recording Status */}
@@ -235,6 +454,7 @@ export default function RecordPage() {
               </>
             )}
 
+            {/* Content for Upload Tab */}
             {activeTab === 'upload' && (
               <>
                 {/* File Upload Area */}
@@ -302,13 +522,21 @@ export default function RecordPage() {
                     )}
                   </button>
                   
+                  {uploading && (
+                    <div className="text-center text-sm text-neutral-600 space-y-1">
+                      <p>This may take a few minutes...</p>
+                      <p>Processing: Transcription → Summary → Quiz Generation</p>
+                    </div>
+                  )}
+                  
                   <button
                     onClick={() => {
                       setAudioBlob(null);
                       setUploadedFile(null);
                       setDuration(0);
                     }}
-                    className="w-full py-3 px-6 rounded-xl border border-neutral-300 bg-white hover:border-neutral-400 text-neutral-700 font-medium transition-colors"
+                    disabled={uploading}
+                    className="w-full py-3 px-6 rounded-xl border border-neutral-300 bg-white hover:border-neutral-400 text-neutral-700 font-medium transition-colors disabled:opacity-50"
                   >
                     {activeTab === 'record' ? 'Record Again' : 'Choose Different File'}
                   </button>
