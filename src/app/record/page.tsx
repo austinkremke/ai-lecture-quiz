@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useSession, signOut } from "next-auth/react";
@@ -15,7 +15,8 @@ import {
   ExternalLink,
   LogOut,
   User,
-  ChevronDown
+  ChevronDown,
+  AlertCircle
 } from "lucide-react";
 
 // Utility function to get user initials
@@ -29,9 +30,22 @@ function getInitials(name: string | null | undefined): string {
     .slice(0, 2);
 }
 
+interface ClassData {
+  id: string;
+  name: string;
+  description?: string;
+  subject?: string;
+  semester?: string;
+  year?: number;
+}
+
 export default function RecordPage() {
   const { data: session } = useSession();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [classes, setClasses] = useState<ClassData[]>([]);
+  const [loadingClasses, setLoadingClasses] = useState(true);
+  const [selectedClassId, setSelectedClassId] = useState<string>("");
+  
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
@@ -46,6 +60,31 @@ export default function RecordPage() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    fetchClasses();
+  }, []);
+
+  const fetchClasses = async () => {
+    try {
+      setLoadingClasses(true);
+      const response = await fetch('/api/classes');
+      if (response.ok) {
+        const data = await response.json();
+        setClasses(data.classes);
+        // Auto-select first class if available
+        if (data.classes.length > 0) {
+          setSelectedClassId(data.classes[0].id);
+        }
+      } else {
+        console.error('Failed to fetch classes');
+      }
+    } catch (err) {
+      console.error('Error fetching classes:', err);
+    } finally {
+      setLoadingClasses(false);
+    }
+  };
 
   const handleSignOut = () => {
     signOut({ callbackUrl: '/' });
@@ -122,8 +161,9 @@ export default function RecordPage() {
 
   const handleUpload = async () => {
     const fileToUpload = audioBlob || uploadedFile;
-    if (!fileToUpload) return;
+    if (!fileToUpload || !selectedClassId) return;
     
+    console.log("🔍 Starting upload with classId:", selectedClassId);
     setUploading(true);
     const formData = new FormData();
     
@@ -137,6 +177,7 @@ export default function RecordPage() {
     
     formData.append('difficulty', difficulty);
     formData.append('numQuestions', numQuestions.toString());
+    formData.append('classId', selectedClassId); // Add the classId
 
     try {
       const response = await fetch('/api/lectures', {
@@ -145,6 +186,7 @@ export default function RecordPage() {
       });
 
       const data = await response.json();
+      console.log("📡 Upload response:", data);
       
       if (response.ok) {
         // Publish the quiz
@@ -162,7 +204,7 @@ export default function RecordPage() {
         throw new Error(data.error || 'Upload failed');
       }
     } catch (error: any) {
-      console.error('Upload error:', error);
+      console.error('💥 Upload error:', error);
       alert(`Upload failed: ${error.message}`);
     } finally {
       setUploading(false);
@@ -468,6 +510,43 @@ export default function RecordPage() {
         <div className="max-w-2xl mx-auto">
           <div className="bg-white rounded-2xl shadow-lg border border-neutral-200 p-8">
             
+            {/* Class Selection */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-neutral-700 mb-2">
+                Select Class *
+              </label>
+              {loadingClasses ? (
+                <div className="flex items-center gap-2 text-neutral-600">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Loading classes...
+                </div>
+              ) : classes.length === 0 ? (
+                <div className="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <AlertCircle className="w-5 h-5 text-yellow-600" />
+                  <div>
+                    <p className="text-sm text-yellow-800">No classes found.</p>
+                    <Link href="/classes/add" className="text-sm text-yellow-700 hover:text-yellow-900 underline">
+                      Create a class first
+                    </Link>
+                  </div>
+                </div>
+              ) : (
+                <select
+                  value={selectedClassId}
+                  onChange={(e) => setSelectedClassId(e.target.value)}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-[#28929f] focus:border-[#28929f] outline-none"
+                  required
+                >
+                  <option value="">Choose a class...</option>
+                  {classes.map(cls => (
+                    <option key={cls.id} value={cls.id}>
+                      {cls.name} {cls.subject && `(${cls.subject})`}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+
             {/* Quiz Settings */}
             <div className="mb-8 space-y-4">
               <div>
@@ -625,7 +704,7 @@ export default function RecordPage() {
                 <>
                   <button
                     onClick={handleUpload}
-                    disabled={uploading}
+                    disabled={uploading || !selectedClassId || classes.length === 0}
                     className="w-full py-4 px-6 rounded-xl bg-[#28929f] hover:bg-[#237a85] text-white font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     {uploading ? (
