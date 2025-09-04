@@ -2,6 +2,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useSession } from "next-auth/react";
 import { 
   ArrowLeft,
   Plus, 
@@ -20,6 +21,17 @@ import {
   Eye
 } from "lucide-react";
 
+// Utility function to get user initials
+function getInitials(name: string | null | undefined): string {
+  if (!name) return "U";
+  return name
+    .split(" ")
+    .map(part => part.charAt(0))
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+}
+
 interface ClassPageProps {
   params: {
     id: string;
@@ -27,6 +39,7 @@ interface ClassPageProps {
 }
 
 export default function ClassPage({ params }: ClassPageProps) {
+  const { data: session } = useSession();
   const classId = params.id;
   
   // Mock data - in real app, this would be fetched based on classId
@@ -91,7 +104,7 @@ export default function ClassPage({ params }: ClassPageProps) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
-            <div className="flex items-center gap-2">
+            <Link href="/" className="flex items-center gap-2">
               <Image
                 src="/images/lecture-logo.png"
                 alt="Resona Logo"
@@ -100,7 +113,7 @@ export default function ClassPage({ params }: ClassPageProps) {
                 className="rounded-lg"
               />
               <span className="font-semibold tracking-tight text-lg">Resona</span>
-            </div>
+            </Link>
 
             {/* Navigation */}
             <nav className="hidden md:flex items-center gap-6">
@@ -115,7 +128,7 @@ export default function ClassPage({ params }: ClassPageProps) {
                 <Settings className="w-5 h-5 text-neutral-600" />
               </button>
               <div className="w-8 h-8 rounded-full bg-[#28929f] flex items-center justify-center text-white text-sm font-medium">
-                JD
+                {getInitials(session?.user?.name)}
               </div>
             </div>
           </div>

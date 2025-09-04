@@ -1,7 +1,9 @@
+"use client";
 import React from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import Link from "next/link";
 import Image from 'next/image';
+import { useSession } from "next-auth/react";
 import {
   Mic,
   AudioLines,
@@ -17,6 +19,17 @@ import {
   GraduationCap,
 } from "lucide-react";
 
+// Utility function to get user initials
+function getInitials(name: string | null | undefined): string {
+  if (!name) return "U";
+  return name
+    .split(" ")
+    .map(part => part.charAt(0))
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+}
+
 /**
  * Animated, Sonix-style wireframe landing page
  * - Tailwind for layout & gray wireframe treatment
@@ -31,6 +44,7 @@ import {
 export default function SonixStyleLandingWireframe() {
   const { scrollYProgress } = useScroll();
   const heroY = useTransform(scrollYProgress, [0, 1], [0, -120]);
+  const { data: session } = useSession();
 
   return (
     <div className="min-h-screen bg-neutral-50 text-neutral-900 selection:bg-[#28929f] selection:text-white">
@@ -55,8 +69,19 @@ export default function SonixStyleLandingWireframe() {
             <a href="#faq" className="hover:text-[#28929f] transition-colors">FAQ</a>
           </nav>
           <div className="flex items-center gap-2">
-            <button className="px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white hover:border-[#28929f] transition-colors">Sign in</button>
-            <Link href="/upload" className="px-3 py-2 text-sm rounded-lg bg-[#28929f] hover:bg-[#237a85] text-white transition-colors">Try free</Link>
+            {session ? (
+              <>
+                <Link href="/dashboard" className="px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white hover:border-[#28929f] transition-colors">Dashboard</Link>
+                <Link href="/dashboard" className="w-8 h-8 rounded-full bg-[#28929f] hover:bg-[#237a85] flex items-center justify-center text-white text-sm font-medium transition-colors">
+                  {getInitials(session.user?.name)}
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link href="/auth/signin" className="px-3 py-2 text-sm border border-neutral-300 rounded-lg bg-white hover:border-[#28929f] transition-colors">Sign in</Link>
+                <Link href="/upload" className="px-3 py-2 text-sm rounded-lg bg-[#28929f] hover:bg-[#237a85] text-white transition-colors">Try free</Link>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -244,7 +269,7 @@ export default function SonixStyleLandingWireframe() {
                   Students submit their answers and receive immediate feedback. All responses are automatically scored with detailed explanations, saving you hours of manual grading work.
                 </p>
               </div>
-            </motion.div>
+              </motion.div>
 
             {/* Data */}
             <motion.div

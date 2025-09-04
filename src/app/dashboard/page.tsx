@@ -2,6 +2,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useSession, signOut } from "next-auth/react";
 import { 
   Plus, 
   Users, 
@@ -12,10 +13,27 @@ import {
   ChevronRight,
   GraduationCap,
   Clock,
-  CheckCircle2
+  CheckCircle2,
+  LogOut,
+  User,
+  ChevronDown
 } from "lucide-react";
 
+// Utility function to get user initials
+function getInitials(name: string | null | undefined): string {
+  if (!name) return "U";
+  return name
+    .split(" ")
+    .map(part => part.charAt(0))
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+}
+
 export default function DashboardPage() {
+  const { data: session } = useSession();
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  
   const [currentPlan] = useState({
     name: "Pro Plan",
     quizzesUsed: 23,
@@ -54,6 +72,10 @@ export default function DashboardPage() {
     }
   ]);
 
+  const handleSignOut = () => {
+    signOut({ callbackUrl: '/' });
+  };
+
   return (
     <div className="min-h-screen bg-neutral-50">
       {/* Header */}
@@ -61,7 +83,7 @@ export default function DashboardPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
-            <div className="flex items-center gap-2">
+            <Link href="/" className="flex items-center gap-2">
               <Image
                 src="/images/lecture-logo.png"
                 alt="Resona Logo"
@@ -70,7 +92,7 @@ export default function DashboardPage() {
                 className="rounded-lg"
               />
               <span className="font-semibold tracking-tight text-lg">Resona</span>
-            </div>
+            </Link>
 
             {/* Navigation */}
             <nav className="hidden md:flex items-center gap-6">
@@ -84,8 +106,57 @@ export default function DashboardPage() {
               <button className="p-2 rounded-lg hover:bg-neutral-100">
                 <Settings className="w-5 h-5 text-neutral-600" />
               </button>
-              <div className="w-8 h-8 rounded-full bg-[#28929f] flex items-center justify-center text-white text-sm font-medium">
-                JD
+              
+              {/* User Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                  className="flex items-center gap-2 p-1 rounded-lg hover:bg-neutral-100 transition-colors"
+                >
+                  <div className="w-8 h-8 rounded-full bg-[#28929f] flex items-center justify-center text-white text-sm font-medium">
+                    {getInitials(session?.user?.name)}
+                  </div>
+                  <ChevronDown className="w-4 h-4 text-neutral-600" />
+                </button>
+
+                {isUserMenuOpen && (
+                  <>
+                    {/* Backdrop */}
+                    <div 
+                      className="fixed inset-0 z-10" 
+                      onClick={() => setIsUserMenuOpen(false)}
+                    />
+                    
+                    {/* Dropdown Menu */}
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-neutral-200 py-1 z-20">
+                      <div className="px-4 py-3 border-b border-neutral-200">
+                        <p className="text-sm font-medium text-neutral-900">
+                          {session?.user?.name || 'User'}
+                        </p>
+                        <p className="text-sm text-neutral-600">
+                          {session?.user?.email}
+                        </p>
+                      </div>
+                      
+                      <Link
+                        href="/dashboard"
+                        className="flex items-center gap-3 px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50 transition-colors"
+                        onClick={() => setIsUserMenuOpen(false)}
+                      >
+                        <User className="w-4 h-4" />
+                        Dashboard
+                      </Link>
+                      
+                      <button
+                        onClick={handleSignOut}
+                        className="flex items-center gap-3 px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50 transition-colors w-full text-left"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        Sign out
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -97,7 +168,7 @@ export default function DashboardPage() {
         {/* Welcome Section */}
         <div className="mb-8">
           <h1 className="text-2xl md:text-3xl font-bold text-neutral-900 mb-2">
-            Welcome back, Dr. Johnson
+            Welcome back{session?.user?.name ? `, ${session.user.name}` : ''}
           </h1>
           <p className="text-neutral-600">
             Manage your lectures, quizzes, and track student progress from your dashboard.

@@ -2,18 +2,32 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useSession } from "next-auth/react";
 import { 
-  ArrowLeft,
-  Save,
-  Users,
-  Calendar,
-  MapPin,
-  BookOpen,
-  Clock,
-  Plus
+  ArrowLeft, 
+  Save, 
+  Users, 
+  Calendar, 
+  MapPin, 
+  BookOpen, 
+  Clock, 
+  Plus 
 } from "lucide-react";
 
+// Utility function to get user initials
+function getInitials(name: string | null | undefined): string {
+  if (!name) return "U";
+  return name
+    .split(" ")
+    .map(part => part.charAt(0))
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+}
+
 export default function AddClassPage() {
+  const { data: session } = useSession();
+  
   const [formData, setFormData] = useState({
     name: "",
     code: "",
@@ -85,7 +99,7 @@ export default function AddClassPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
-            <div className="flex items-center gap-2">
+            <Link href="/" className="flex items-center gap-2">
               <Image
                 src="/images/lecture-logo.png"
                 alt="Resona Logo"
@@ -94,7 +108,7 @@ export default function AddClassPage() {
                 className="rounded-lg"
               />
               <span className="font-semibold tracking-tight text-lg">Resona</span>
-            </div>
+            </Link>
 
             {/* Navigation */}
             <nav className="hidden md:flex items-center gap-6">
@@ -106,7 +120,7 @@ export default function AddClassPage() {
             {/* User Menu */}
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-[#28929f] flex items-center justify-center text-white text-sm font-medium">
-                JD
+                {getInitials(session?.user?.name)}
               </div>
             </div>
           </div>

@@ -1,5 +1,6 @@
 import { Barlow } from 'next/font/google'
 import "./globals.css";
+import { AuthProvider } from './providers';
 
 const barlow = Barlow({
   subsets: ['latin'],
@@ -12,7 +13,11 @@ export const metadata = { title: "AI Lecture → Quiz (Whisper)", description: "
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={barlow.variable}>
-      <body className={barlow.className}>{children}</body>
+      <body className={barlow.className}>
+        <AuthProvider>
+          {children}
+        </AuthProvider>
+      </body>
     </html>
   );
 }
