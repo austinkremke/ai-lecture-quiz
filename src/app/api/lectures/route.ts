@@ -1,4 +1,5 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/db";
 import { transcribeBuffer } from "@/lib/stt";
 import { summarizeTranscript, generateQuiz } from "@/lib/llm";
@@ -51,8 +52,10 @@ export async function POST(req: NextRequest) {
   const title = (form.get("title") as string | null) ?? "Untitled Lecture";
   const difficulty = ((form.get("difficulty") as string | null) ?? "medium") as "easy"|"medium"|"hard";
   const numQuestions = Number((form.get("numQuestions") as string | null) ?? "8");
+  const classId = form.get("classId") as string | null;
 
   if (!file) return new Response(JSON.stringify({ error: "Missing file" }), { status: 400 });
+  if (!classId) return new Response(JSON.stringify({ error: "Missing classId" }), { status: 400 });
 
   try {
     // Validate file format before processing
@@ -64,7 +67,13 @@ export async function POST(req: NextRequest) {
   const buf = Buffer.from(await file.arrayBuffer());
   const mime = file.type || "audio/webm";
 
-  const lecture = await prisma.lecture.create({ data: { title, status: "transcribing" } });
+  const lecture = await prisma.lecture.create({ 
+    data: { 
+      title, 
+      status: "transcribing",
+      classId 
+    } 
+  });
 
   try {
     const transcript = await transcribeBuffer(buf, mime, file.name);
@@ -91,5 +100,95 @@ export async function POST(req: NextRequest) {
   } catch (e: any) {
     await prisma.lecture.update({ where: { id: lecture.id }, data: { status: "error" } });
     return new Response(JSON.stringify({ error: e?.message || "processing failed" }), { status: 500 });
+  }
+}
+
+export async function GET(req: NextRequest) {
+  try {
+    const session = await getServerSession();
+    
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const classId = searchParams.get('classId');
+
+    // Get user by email
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email }
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    let whereClause: any = {};
+    
+    if (classId) {
+      // Fetch lectures for specific class
+      whereClause = {
+        classId,
+        class: {
+          userId: user.id // Ensure user owns the class
+        }
+      };
+    } else {
+      // Fetch all lectures for user's classes
+      whereClause = {
+        class: {
+          userId: user.id
+        }
+      };
+    }
+
+    // Fetch lectures with their associated quizzes
+    const lectures = await prisma.lecture.findMany({
+      where: whereClause,
+      include: {
+        class: true,
+        quiz: {
+          include: {
+            questions: true,
+            submissions: true,
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    // Transform lectures into a format suitable for the dashboard
+    const lectureData = lectures.map(lecture => {
+      const quiz = lecture.quiz;
+      const submissions = quiz?.submissions || [];
+      const uniqueStudents = new Set(submissions.map(s => s.studentLabel)).size;
+      
+      return {
+        id: lecture.id,
+        title: lecture.title || 'Untitled Lecture',
+        status: lecture.status,
+        createdAt: lecture.createdAt,
+        classId: lecture.classId,
+        className: lecture.class.name,
+        hasQuiz: !!quiz,
+        quizId: quiz?.id,
+        isPublished: quiz?.isPublished || false,
+        publicSlug: quiz?.publicSlug,
+        questionsCount: quiz?.questions?.length || 0,
+        submissionsCount: submissions.length,
+        uniqueStudentsCount: uniqueStudents,
+        difficulty: quiz?.difficulty
+      };
+    });
+
+    return NextResponse.json({ lectures: lectureData });
+  } catch (error) {
+    console.error("Error fetching lectures:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch lectures" },
+      { status: 500 }
+    );
   }
 }

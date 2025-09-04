@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -16,8 +17,8 @@ model User {
   emailVerified DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
-
   accounts      Account[]
+  classes       Class[]
   sessions      Session[]
 }
 
@@ -27,15 +28,14 @@ model Account {
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
+  refresh_token     String?
+  access_token      String?
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String? @db.Text
+  id_token          String?
   session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
 }
@@ -56,61 +56,77 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
+model Class {
+  id          String    @id @default(uuid())
+  name        String
+  description String?
+  subject     String?
+  semester    String?
+  year        Int?
+  userId      String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lectures    Lecture[]
+}
+
 model Lecture {
   id             String   @id @default(uuid())
   title          String?
   transcriptJson Json?
   summaryMd      String?
   status         String   @default("uploaded")
+  classId        String
   createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  class          Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
   quiz           Quiz?
 }
 
 model Quiz {
-  id            String       @id @default(uuid())
-  lectureId     String       @unique
-  lecture       Lecture      @relation(fields: [lectureId], references: [id])
-  difficulty    String
-  numQuestions  Int
-  isPublished   Boolean      @default(false)
-  publicSlug    String?      @unique
-  title         String?
-
-  questions     Question[]
-  submissions   Submission[]
+  id           String       @id @default(uuid())
+  lectureId    String       @unique
+  difficulty   String
+  numQuestions Int
+  isPublished  Boolean      @default(false)
+  publicSlug   String?      @unique
+  title        String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  questions    Question[]
+  lecture      Lecture      @relation(fields: [lectureId], references: [id], onDelete: Cascade)
+  submissions  Submission[]
 }
 
 model Question {
-  id            String   @id @default(uuid())
-  quizId        String
-  quiz          Quiz     @relation(fields: [quizId], references: [id])
-  prompt        String
-  options       Json
-  correctIndex  Int
-  rationale     String?
-  sources       Json?
-  answers       Answer[]
+  id           String   @id @default(uuid())
+  quizId       String
+  prompt       String
+  options      Json
+  correctIndex Int
+  rationale    String?
+  sources      Json?
+  answers      Answer[]
+  quiz         Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
 }
 
 model Submission {
-  id            String     @id @default(uuid())
-  quizId        String
-  quiz          Quiz       @relation(fields: [quizId], references: [id])
-  studentLabel  String?
-  startedAt     DateTime   @default(now())
-  submittedAt   DateTime?
-  answers       Answer[]
+  id           String    @id @default(uuid())
+  quizId       String
+  studentLabel String?
+  startedAt    DateTime  @default(now())
+  submittedAt  DateTime?
+  answers      Answer[]
+  quiz         Quiz      @relation(fields: [quizId], references: [id], onDelete: Cascade)
 }
 
 model Answer {
-  submissionId  String
-  questionId    String
-
-  submission    Submission @relation(fields: [submissionId], references: [id])
-  question      Question   @relation(fields: [questionId], references: [id])
-
-  chosenIndex   Int?
-  isCorrect     Boolean
+  submissionId String
+  questionId   String
+  chosenIndex  Int?
+  isCorrect    Boolean
+  question     Question   @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
 
   @@id([submissionId, questionId])
 }

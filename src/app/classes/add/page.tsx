@@ -76,17 +76,43 @@ export default function AddClassPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    console.log("🔍 Submitting class creation form:", formData);
 
-    // Simulate API call
     try {
-      // In a real app, you would make an API call here
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Prepare data for API call
+      const classData = {
+        name: formData.name,
+        description: formData.description || null,
+        subject: formData.code, // Using course code as subject
+        semester: formData.semester,
+        year: 2025 // Extract year from semester if needed
+      };
+
+      console.log("📝 Sending class data to API:", classData);
+
+      const response = await fetch("/api/classes", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(classData),
+      });
+
+      console.log("📡 API response status:", response.status);
+      const result = await response.json();
+      console.log("📄 API response data:", result);
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to create class");
+      }
+
+      console.log("✅ Class created successfully:", result.class.id);
       
-      // Redirect to dashboard or new class page
+      // Redirect to dashboard
       window.location.href = "/dashboard";
     } catch (error) {
-      console.error("Error creating class:", error);
-      alert("Failed to create class. Please try again.");
+      console.error("💥 Error creating class:", error);
+      alert(`Failed to create class: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsSubmitting(false);
     }
